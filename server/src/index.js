@@ -20,7 +20,6 @@ app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 
-// Never cache API responses (so the back button can't show stale protected data)
 app.use('/api', (req, res, next) => {
   res.set('Cache-Control', 'no-store');
   next();
@@ -31,7 +30,6 @@ app.use('/api/products', productRoutes);
 app.use('/api/bills', billRoutes);
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
 
-// Optional: serve the built React app (npm run build) from this same server
 const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
 if (fs.existsSync(dist)) {
   app.use(express.static(dist));
@@ -41,7 +39,6 @@ if (fs.existsSync(dist)) {
   });
 }
 
-// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err.type === 'entity.parse.failed') return res.status(400).json({ message: 'Invalid JSON' });
   if (err.status) return res.status(err.status).json({ message: err.message, errors: err.errors });

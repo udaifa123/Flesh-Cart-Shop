@@ -77,7 +77,6 @@ router.post('/', asyncHandler(async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Lock product rows (in id order, to avoid deadlocks) so concurrent bills can't oversell
     const ids = [...wanted.keys()].sort((a, b) => a - b);
     const { rows: products } = await client.query(
       'SELECT id, name, price, stock FROM products WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE',

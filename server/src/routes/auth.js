@@ -8,7 +8,6 @@ import { HttpError, asyncHandler, EMAIL_RE, PHONE_RE } from '../utils.js';
 const router = Router();
 const MAX_ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
-// Used so a login for an unknown email takes about as long as a real one
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 10);
 
 const cookieOptions = () => ({

@@ -1,4 +1,4 @@
-// Creates the database (if missing), tables, sample products and the admin user.
+
 import 'dotenv/config';
 import fs from 'node:fs';
 import path from 'node:path';

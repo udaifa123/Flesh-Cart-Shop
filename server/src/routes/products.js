@@ -5,7 +5,6 @@ import { HttpError, asyncHandler } from '../utils.js';
 
 const router = Router();
 
-// Public: used by the landing page and the POS screen
 router.get('/', asyncHandler(async (req, res) => {
   const q = String(req.query.q ?? '').trim();
   const { rows } = q
@@ -17,7 +16,7 @@ router.get('/', asyncHandler(async (req, res) => {
   res.json({ products: rows });
 }));
 
-// Admin only
+
 router.post('/', requireAuth, requireAdmin, asyncHandler(async (req, res) => {
   const name = String(req.body?.name ?? '').trim();
   const price = Number(req.body?.price);

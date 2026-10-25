@@ -2,7 +2,6 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db.js';
 import { HttpError, asyncHandler } from '../utils.js';
 
-// Server-side check on every protected request: valid signed cookie AND user still exists
 export const requireAuth = asyncHandler(async (req, res, next) => {
   const token = req.cookies?.token;
   if (!token) throw new HttpError(401, 'Not logged in');
