@@ -1,49 +1,119 @@
--- FreshCart schema (PostgreSQL). Safe to run more than once.
 
+-- =========================================================
+-- FRESHCART SHOP - POSTGRESQL DATABASE SCHEMA
+-- Safe to run more than once.
+-- =========================================================
+
+-- 1. USERS TABLE
 CREATE TABLE IF NOT EXISTS users (
   id              SERIAL PRIMARY KEY,
   full_name       VARCHAR(100) NOT NULL,
   email           VARCHAR(255) NOT NULL,
-  phone           VARCHAR(20)  NOT NULL,
-  password_hash   TEXT         NOT NULL,
-  role            VARCHAR(10)  NOT NULL DEFAULT 'staff' CHECK (role IN ('staff', 'admin')),
-  failed_attempts INT          NOT NULL DEFAULT 0,
+  phone           VARCHAR(20) NOT NULL,
+  password_hash   TEXT NOT NULL,
+  role            VARCHAR(10) NOT NULL DEFAULT 'staff'
+                  CHECK (role IN ('staff', 'admin')),
+  failed_attempts INT NOT NULL DEFAULT 0,
   locked_until    TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now()
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique ON users (LOWER(email));
 
+CREATE UNIQUE INDEX IF NOT EXISTS users_email_unique
+ON users (LOWER(email));
+
+
+-- 2. PRODUCTS TABLE
 CREATE TABLE IF NOT EXISTS products (
   id         SERIAL PRIMARY KEY,
-  name       VARCHAR(120)  NOT NULL UNIQUE,
+  name       VARCHAR(120) NOT NULL UNIQUE,
   price      NUMERIC(10,2) NOT NULL CHECK (price >= 0),
-  stock      INT           NOT NULL CHECK (stock >= 0),
-  emoji      VARCHAR(8)    NOT NULL DEFAULT '🛒',
-  created_at TIMESTAMPTZ   NOT NULL DEFAULT now()
+  stock      INT NOT NULL CHECK (stock >= 0),
+  emoji      VARCHAR(8) NOT NULL DEFAULT '🛒',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE INDEX IF NOT EXISTS products_name_idx
+ON products (name);
+
+
+-- 3. BILL NUMBER SEQUENCE
 CREATE SEQUENCE IF NOT EXISTS bill_number_seq START 1001;
 
+
+-- 4. BILLS / ORDERS TABLE
 CREATE TABLE IF NOT EXISTS bills (
   id             SERIAL PRIMARY KEY,
-  bill_number    VARCHAR(30)   NOT NULL UNIQUE,
+  bill_number    VARCHAR(30) NOT NULL UNIQUE,
   customer_name  VARCHAR(100),
   customer_phone VARCHAR(20),
   subtotal       NUMERIC(12,2) NOT NULL,
   gst_amount     NUMERIC(12,2) NOT NULL,
   grand_total    NUMERIC(12,2) NOT NULL,
   created_by     INT REFERENCES users(id),
-  created_at     TIMESTAMPTZ   NOT NULL DEFAULT now()
-);
-CREATE INDEX IF NOT EXISTS bills_created_at_idx ON bills (created_at DESC);
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
 
+  status         VARCHAR(20) NOT NULL DEFAULT 'Completed'
+                 CHECK (
+                   status IN (
+                     'Pending',
+                     'Processing',
+                     'Completed',
+                     'Cancelled'
+                   )
+                 )
+);
+
+CREATE INDEX IF NOT EXISTS bills_created_at_idx
+ON bills (created_at DESC);
+
+CREATE INDEX IF NOT EXISTS bills_status_idx
+ON bills (status);
+
+
+-- 5. BILL ITEMS TABLE
 CREATE TABLE IF NOT EXISTS bill_items (
   id           SERIAL PRIMARY KEY,
-  bill_id      INT           NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
-  product_id   INT           NOT NULL REFERENCES products(id),
-  product_name VARCHAR(120)  NOT NULL,
+  bill_id      INT NOT NULL
+               REFERENCES bills(id) ON DELETE CASCADE,
+  product_id   INT NOT NULL REFERENCES products(id),
+  product_name VARCHAR(120) NOT NULL,
   unit_price   NUMERIC(10,2) NOT NULL,
-  quantity     INT           NOT NULL CHECK (quantity > 0),
+  quantity     INT NOT NULL CHECK (quantity > 0),
   line_total   NUMERIC(12,2) NOT NULL
 );
-CREATE INDEX IF NOT EXISTS bill_items_bill_idx ON bill_items (bill_id);
+
+CREATE INDEX IF NOT EXISTS bill_items_bill_idx
+ON bill_items (bill_id);
+
+CREATE INDEX IF NOT EXISTS bill_items_product_idx
+ON bill_items (product_id);
+
+
+-- =========================================================
+-- 6. MIGRATION FOR EXISTING DATABASES
+-- Adds status to an existing bills table if missing.
+-- =========================================================
+
+ALTER TABLE bills
+ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL
+DEFAULT 'Completed';
+
+-- Ensure the status constraint exists with the correct values.
+ALTER TABLE bills
+DROP CONSTRAINT IF EXISTS bills_status_check;
+
+ALTER TABLE bills
+ADD CONSTRAINT bills_status_check
+CHECK (
+  status IN (
+    'Pending',
+    'Processing',
+    'Completed',
+    'Cancelled'
+  )
+);
+
+
+-- =========================================================
+-- SCHEMA SETUP COMPLETE
+-- =========================================================
