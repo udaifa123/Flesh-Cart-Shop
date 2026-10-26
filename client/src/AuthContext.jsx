@@ -1,18 +1,27 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
+
 import { api } from './api.js';
 
 const AuthCtx = createContext(null);
+
 export const useAuth = () => useContext(AuthCtx);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Always ask the server who we are (the cookie is httpOnly, JS can't read it)
+  // Restore the current login session.
   const refresh = useCallback(async () => {
     try {
-      const d = await api('/auth/me');
-      setUser(d.user);
+      const data = await api('/auth/me');
+      setUser(data.user);
     } catch {
       setUser(null);
     } finally {
@@ -22,28 +31,80 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     refresh();
-    const onExpired = () => setUser(null);
-    // Back/forward cache: re-check the session when a page is restored from history
-    const onShow = (e) => e.persisted && refresh();
+
+    const onExpired = () => {
+      setUser(null);
+    };
+
+    const onShow = (event) => {
+      if (event.persisted) {
+        refresh();
+      }
+    };
+
     window.addEventListener('auth-expired', onExpired);
     window.addEventListener('pageshow', onShow);
+
     return () => {
       window.removeEventListener('auth-expired', onExpired);
       window.removeEventListener('pageshow', onShow);
     };
   }, [refresh]);
 
+  // Email and password login.
   const login = async (email, password) => {
-    const d = await api('/auth/login', { method: 'POST', body: { email, password } });
-    setUser(d.user);
+    const data = await api('/auth/login', {
+      method: 'POST',
+      body: {
+        email,
+        password,
+      },
+    });
+
+    setUser(data.user);
+    return data.user;
   };
+
+  // Google sign-in.
+  const googleLogin = async (credential) => {
+    if (typeof credential !== 'string' || !credential) {
+      throw new Error('Google sign-in credential is missing.');
+    }
+
+    const data = await api('/auth/google', {
+      method: 'POST',
+      body: {
+        credential,
+      },
+    });
+
+    setUser(data.user);
+    return data.user;
+  };
+
+  // Logout.
   const logout = async () => {
     try {
-      await api('/auth/logout', { method: 'POST' });
+      await api('/auth/logout', {
+        method: 'POST',
+      });
     } finally {
       setUser(null);
     }
   };
 
-  return <AuthCtx.Provider value={{ user, loading, login, logout }}>{children}</AuthCtx.Provider>;
+  return (
+    <AuthCtx.Provider
+      value={{
+        user,
+        loading,
+        login,
+        googleLogin,
+        logout,
+        refresh,
+      }}
+    >
+      {children}
+    </AuthCtx.Provider>
+  );
 }
